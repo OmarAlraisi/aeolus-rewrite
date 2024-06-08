@@ -11,6 +11,7 @@ DEBUG = target/debug/router
 RELEASE = target/release/router
 
 ROUTER_HOST = router
+ROUTER_CONFIG = ./router-config.yaml
 
 RUN_SCRIPT = ./router.sh
 
@@ -27,5 +28,6 @@ build-bpf:
 # copy and deploy the router
 ship:
 	scp $(RELEASE) $(ROUTER_HOST):~
+	scp $(ROUTER_CONFIG) $(ROUTER_HOST):~
 	scp $(RUN_SCRIPT) $(ROUTER_HOST):xdp_router
 	ssh $(ROUTER_HOST) chmod u+x xdp_router
