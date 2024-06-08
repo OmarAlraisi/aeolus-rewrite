@@ -1,32 +1,17 @@
-# router
+# Router
 
-## Prerequisites
+As described in the [`setup`](../docs/setup.md) documentation, this is a workaround to the ECMP setup.
 
-1. Install bpf-linker: `cargo install bpf-linker`
+## Usage:
 
-## Build eBPF
+- To build the router:
 
-```bash
-cargo xtask build-ebpf
+```BASH
+make build
 ```
 
-To perform a release build you can use the `--release` flag.
-You may also change the target architecture with the `--target` flag.
+- To copy the application to the target server:
 
-## Build Userspace
-
-```bash
-cargo build
-```
-
-## Build eBPF and Userspace
-
-```bash
-cargo xtask build
-```
-
-## Run
-
-```bash
-RUST_LOG=info cargo xtask run
+```BASH
+make ship
 ```
