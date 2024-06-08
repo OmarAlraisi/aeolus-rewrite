@@ -1,10 +1,18 @@
 CARGO = cargo
 RUNNER = sudo
 
-RUST_LOG = info
+RUST_LOG = RUST_LOG=info
+
+RUN_ENV = $(RUST_LOG)
+
+RUN_ARGS = -i enp1s0
 
 DEBUG = target/debug/router
-RELEAS = target/release/router
+RELEASE = target/release/router
+
+ROUTER_HOST = router
+
+RUN_SCRIPT = ./router.sh
 
 # build router
 build: build-user build-bpf
@@ -18,5 +26,6 @@ build-bpf:
 
 # copy and deploy the router
 ship:
-	scp $(RELEASE) $(ROUTER_HOST)
-	ssh $(ROUTER_HOST) sudo -S ./router
+	scp $(RELEASE) $(ROUTER_HOST):~
+	scp $(RUN_SCRIPT) $(ROUTER_HOST):xdp_router
+	ssh $(ROUTER_HOST) chmod u+x xdp_router
