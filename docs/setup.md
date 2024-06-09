@@ -1,6 +1,6 @@
 # Setup
 
-Since ECMP is complicated to setup, for testing purposes, we will use another XDP application to to distribute packets in a round robin fashion.
+Since ECMP is complicated to setup, for testing purposes, we will use another XDP application (**[`router`](../router/README.md)**) to to distribute packets in a round robin fashion.
 
 The desired packet flow is for packets to come from external go through the router (Our custom eBPF application), then the router forwards the packets to one of the two servers with our main XDP application.
 
