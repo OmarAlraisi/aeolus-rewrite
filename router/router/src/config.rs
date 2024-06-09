@@ -2,10 +2,8 @@ use clap::Parser;
 use serde::Deserialize;
 use std::{error, fmt::Display, fs, io::BufReader};
 
-const DEFAULT_LOG_FILE: &str = "/var/log/aeolus.log";
 const DEFAULT_NETWORK_INTERFACE: &str = "wlp1s0";
 const DEFAULT_CONFIG_FILE: &str = "aeolus.yaml";
-const DEFAULT_HEALTH_PERIOD: u8 = 10;
 
 #[derive(Debug)]
 pub struct ConfigError {

@@ -69,6 +69,12 @@ async fn main() -> Result<(), anyhow::Error> {
         servers.set(idx as u32, server, 0)?;
     }
 
+    let mut servers_count: Array<_, u8> = Array::try_from(bpf.take_map("SERVERS_COUNT").unwrap())?;
+    servers_count.set(0, opt.servers.len() as u8, 0)?;
+
+    let mut current_count: Array<_, u8> = Array::try_from(bpf.take_map("CURRENT_COUNT").unwrap())?;
+    current_count.set(0, 0, 0)?;
+
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
