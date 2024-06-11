@@ -6,15 +6,71 @@ Aeolus uses a simple two-array structure for the [`forwarding table`](https://ww
 
 TODO
 
-Assuming we have `n` servers, each hop table of the forwarding table should have `(n * (n - 1))` entries.
+When a new packet arrives, we generate a [`hash`](#hashing) key which is used to retrieve the destination server from the forwarding table.
 
-For example, 5 servers (servers 0 - 4) and currently we are draining server `0`:
+The forwarding table consists of two arrays, representing the first and second hop destinations. If we have `s` servers (`0 to s-1`), each array will consist of `s * floor(s / 2)` entries (<i>`num_entries`</i>), where each server will appear `floor(s / 2)` (<i>`freq`</i>) times in the array.
+
+When draining a server `x`, it becomes an <i>**always-second hop**</i> server. To remove the server `x` from the first hop array we perform the following:
+
+```Text
+    - Find the first position of server 'x'. (idx_x)
+    - Calculate the index's pre-value. (idx) - [idx = idx_x - freq]
+    - Loop freq times and perform:
+        idx = (idx + (2 * freq)) % num_entries
+        first[idx_x] = first[idx]
+        idx_x = idx_x + 1
 ```
-{
-   "first":  [1, 2, 3, 4, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4],
-   "second": [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4]
-}
+
+And once `x` is draind, we replace every occurrence of `x` in the second hop array with the server at the same index but in the first hop array. - Assume `x` occurred at index `i`, then `second[i] = first[i]`.
+
+---
+
+#### Example:
+
+Assume we have `7` servers, the forwarding table arrays will have `7 * floor(7 / 2) = 21` entries. When all servers are healthy, the forwarding table will look as such:
+
+```Text
+first  = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6]
+second = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6]
 ```
+
+Now, let's say we want to drain server `4`.
+
+```Text
+idx_x = 12
+idx = 12 - 3 = 9
+loop 3 times:
+    1:
+        idx = (9 + (2 * 3)) % 21 = 15
+        first[12] = first[15] = 5
+        idx_x = 12 + 1 = 13
+
+    2:
+        idx = (15 + (2 * 3)) % 21 = 0
+        first[13] = first[0] = 0
+        idx_x = 13 + 1 = 14
+
+    3:
+        idx = (0 + (2 * 3)) % 21 = 6
+        first[14] = first[6] = 2
+        idx_x = 14 + 1 = 15
+```
+
+The resulting forwarding table will look like:
+
+```Text
+first  = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 0, 2, 5, 5, 5, 6, 6, 6]
+second = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6]
+```
+
+And once server `4` is drained, we can replace all its occurrences in second array with its first hop destination:
+
+```Text
+first  = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 0, 2, 5, 5, 5, 6, 6, 6]
+second = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 0, 2, 5, 5, 5, 6, 6, 6]
+```
+
+**This doesn't work.** How would you drain servers `5`, `0`, or `2` now?
 
 ## Hashing
 
@@ -26,7 +82,7 @@ Assume we have a packet with the following info:
 
 | Key       | Value       |
 | --------- | ----------- |
-| src_ip    | 203.0.113.1 |
+| src_ip    2,| 203.0.113.1 |
 | src_port  | 1234        |
 | dest_ip   | 203.0.113.2 |
 | dest_port | 4321        |
