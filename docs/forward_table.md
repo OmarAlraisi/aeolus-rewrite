@@ -11,7 +11,6 @@ Since **<i>Aeolus</i>** allows for adding and removing nodes from the cluster, n
 The forwarding table consists of two arrays, representing the first hop and second hop destinations. If we have `s` servers (`0 to s-1`), each array will consist of `s * floor(s / 2)` entries, where each server will appear `floor(s / 2)` times in the array.
 
 ### Removing Nodes From the Cluster
-
 ---
 
 Assuming no server currently in the `DRAINIG` state, when we move `x` to the `DRAINING` state, it becomes an <i>**always-second hop**</i> server. To remove the server `x` from the first hop array we perform the following:
@@ -64,7 +63,6 @@ Now, that there is no server in the `DRAINING` state, you will have to recreate 
 ```
 
 ### Adding Nodes to the Cluster
-
 ---
 
 Adding nodes to Aeolus is more straightforward, all that needs to be done is adding the node to the first hop array without modifying the second hop array. And to ensure mainitaining a good distribution when adding a server `x`:
@@ -73,8 +71,17 @@ Adding nodes to Aeolus is more straightforward, all that needs to be done is add
 - Track the nodes with the most frequency. - `MaxHeap`.
     - Move them from the first hop array to the same position in the second hop array.
     - Substite them in the first hop array with `x`.
+- Put server `x` in the `FILLING` state.
 
-TODO: Find out a way to add more than one server at once.
+### Node State
+---
+
+A node can be in one of four states:
+
+- **`ACTIVE`**: The node is functioning normally.
+- **`DRAINING`**: The node is being drained to be taken out of the cluster, however, it might still have some established connections.
+- **`FILLING`**: The nodes can be treated as if it is in the **`ACTIVE`** state, but it might be dangerous to change its states, as its second hops might still be in **`ACTIVE`** or **`DRAINING`** state.
+- **`INACTIVE`**: The node is not running, and can be changed from the second hop array at any time.
 
 ## Hashing
 
