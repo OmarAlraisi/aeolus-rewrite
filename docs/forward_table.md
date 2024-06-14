@@ -6,14 +6,14 @@
 
 When a new packet arrives, we generate a [`hash`](#hashing) key which is used to retrieve the destination server from the forwarding table.
 
-Since **<i>Aeolus</i>** allows for adding and removing nodes from the cluster, nodes can be in `ACTIVE`, `DRAINING`, or `FILLING` states. The design of the forwarding table for **<i>Aeolus</i>** was inspired by [`GLB Director Hashing (glb)`](https://github.com/github/glb-director/blob/master/docs/development/glb-hashing.md), however, unlike **<i>glb</i>**, one of the key considerations for **<i>Aeolus</i>** was that we wanted to be able to drain more than one server at a time (i.e. in `DRAINING` state), which **<i>glb</i>** didn't allow, or add more than one server at a time (i.e. in `FILLING` state). - **_The caveat is that you can not have servers in the_ `DRAINGIN` _state and others in the `FILLING` state at the same time._**
+Since **<i>Aeolus</i>** allows for adding and removing nodes from the cluster, nodes can be in **`ACTIVE`**, **`DRAINING`**, **`FILLING`**, or **`INACTIVE`** states. The design of the forwarding table for **<i>Aeolus</i>** was inspired by [`GLB Director Hashing (glb)`](https://github.com/github/glb-director/blob/master/docs/development/glb-hashing.md), however, unlike **<i>glb</i>**, one of the key considerations for **<i>Aeolus</i>** was that we wanted to be able to drain more than one server at a time (i.e. in **`DRAINING`** state), which **<i>glb</i>** didn't allow, or add more than one server at a time (i.e. in **`FILLING`** state). - **_The caveat is that you can not have servers in the_ `DRAINGIN` _state and others in the `FILLING` state at the same time._**
 
 The forwarding table consists of two arrays, representing the first hop and second hop destinations. If we have `s` servers (`0 to s-1`), each array will consist of `s * floor(s / 2)` entries, where each server will appear `floor(s / 2)` times in the array.
 
 ### Removing Nodes From the Cluster
 ---
 
-Assuming no server currently in the `DRAINIG` state, when we move `x` to the `DRAINING` state, it becomes an <i>**always-second hop**</i> server. To remove the server `x` from the first hop array we perform the following:
+Assuming no server currently in the **`DRAINIG`** state, when we move `x` to the **`DRAINING`** state, it becomes an <i>**always-second hop**</i> server. To remove the server `x` from the first hop array we perform the following:
 
 - Split the servers into two groups, one with servers who have even indices in an array of all running servers, and the other with for servers with odd indices.
 
@@ -21,11 +21,11 @@ Assuming no server currently in the `DRAINIG` state, when we move `x` to the `DR
 
 Once `x` is drained, remove all occurrences of `x` in the second hop array with the server at the same index in the first hop array.
 
-However, if there is at least one server `y` that is in the `DRAINING` state, then `x` is ONLY allowed to be moved to the `DRAINING` state if it belongs to the same group of `y`.
+However, if there is at least one server `y` that is in the **`DRAINING`** state, then `x` is ONLY allowed to be moved to the **`DRAINING`** state if it belongs to the same group of `y`.
 
-#### Example:
+<h4 id="removing-example">Example:</h4>
 
-Assume we have `7` servers, the forwarding table arrays will have `7 * floor(7 / 2) = 21` entries. When all servers are in the `ACTIVE` state, the forwarding table will look as such:
+Assume we have `7` servers, the forwarding table arrays will have `7 * floor(7 / 2) = 21` entries. When all servers are in the **`ACTIVE`** state, the forwarding table will look as such:
 
 ```Text
 first  = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6]
@@ -55,7 +55,7 @@ second hop array.
     second = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
 ```
 
-Now, that there is no server in the `DRAINING` state, you will have to recreate `group_a` and `group_b` once you start draining a new server. They will look like:
+Now, that there is no server in the **`DRAINING`** state, you will have to recreate `group_a` and `group_b` once you start draining a new server. They will look like:
 
 ```Text
     group_a = [0, 2, 5]
@@ -67,11 +67,16 @@ Now, that there is no server in the `DRAINING` state, you will have to recreate 
 
 Adding nodes to Aeolus is more straightforward, all that needs to be done is adding the node to the first hop array without modifying the second hop array. And to ensure mainitaining a good distribution when adding a server `x`:
 
+- Put server `x` in the **`FILLING`** state.
 - Calculate the appropriate frequency of `x` in the forwarding table arrays.
-- Track the nodes with the most frequency. - `MaxHeap`.
+- Track the nodes, _**that are in the `ACTIVE` state**_, with the most frequency. - `MaxHeap`.
     - Move them from the first hop array to the same position in the second hop array.
     - Substite them in the first hop array with `x`.
-- Put server `x` in the `FILLING` state.
+- Once server `x` is not redirecting anymore packets, chage its state to **`ACTIVE`**
+
+<h4 id="adding-example">Example:</h4>
+
+TODO: Continue on the same [example](#removing-example) of the previous section.
 
 ### Node State
 ---
