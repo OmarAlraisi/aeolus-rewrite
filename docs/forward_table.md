@@ -73,6 +73,8 @@ Adding nodes to Aeolus is more straightforward, all that needs to be done is add
     - Substite them in the first hop array with `x`.
 - Once server `x` is not redirecting anymore packets, chage its state to **`ACTIVE`**
 
+_**Note that there is no need to copy server `x` to the second hop array once it state changes to `ACTIVE`.**_
+
 <h4 id="appropriate-frequency">Filling Node Frequency:</h4>
 
 Let's say we have `num_of_entries` entry in each array of the forwarding table, and we currently have `num_of_nodes` nodes that are either in the **`ACTIVE`** or the **`FILLING`** states. It might be intuitive to add `(num_of_entries / num_of_nodes)` of the node `x` to the forwarding table. However, this will make it difficult to add more new nodes to the cluster, as nodes that are in the **`FILLING`** state can not be moved to the second hop array.
@@ -98,17 +100,34 @@ Let's add server `4` back into the cluster.
 
 ```Text
 Step I: Calculate the desired frequency for server `4`.
-    freq = ceil((floor(num_of_entries / num_of_active) / 3) * 2)
     freq = ceil((floor(21 / 5) / 3) * 2) = 3
-    freq = ceil((floor(4.2) / 3) * 2) = 3
-    freq = ceil((4 / 2) * 3) = 3
-    freq = ceil(2.66666667) = 3
 
-first  = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
-second = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+Step II: Track most frequent nodes and start adding server `4`.
+    Loop i: MaxHeap.pop() => 1
+        Replace 1 occurrence of server `1` with `4`.
+        first  = [0, 0, 0, 4, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+        second = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+
+    Loop ii: MaxHeap.pop() => 3
+        Replace 1 occurrence of server `3` with `4`.
+        first  = [0, 0, 0, 4, 1, 1, 1, 4, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+        second = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+
+    Loop i: MaxHeap.pop() => 5
+        Replace 1 occurrence of server `5` with `4`.
+        first  = [0, 0, 0, 4, 1, 1, 1, 4, 4, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+        second = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+
+**Note: We can also add server `2` back to the cluster, but we can never add it
+        in the place of of server `4` (i.e. a server in the `FILLING` state).
+
+Step III: Change the state of server `4` once it is not directing any connection.
+    Note that we don't need to copy anything to the second hop array. And this 
+    would be the state of the forwarding table when all servers are in the
+    `ACTIVE` state:
+        first  = [0, 0, 0, 4, 1, 1, 1, 4, 4, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+        second = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
 ```
-
-TODO: Continue on the same [example](#removing-example) of the previous section.
 
 ### Node State
 ---
