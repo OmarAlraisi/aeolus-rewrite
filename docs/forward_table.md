@@ -47,12 +47,12 @@ Step II: Replace all occurrences of server `4` in the first hop array.
         move servers, `1`, `3`, or `5` to the `DRAINING` state, since they are 
         the first destination for packets that are meant for server `4`. You 
         can only chage the states of servers `0`, `2`, and `6` to the `DRAINING`
-        state.
+        state. - For the sake of the example, server `2` will also be removed.
 
-Once server `4` is fully drained, remove all occurrences of server `4` from the
-second hop array.
-    first  = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
-    second = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+Once servers `2` and `4` are fully drained, remove all theirs occurrences from
+the second hop array.
+    first  = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+    second = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
 ```
 
 Now, that there is no server in the **`DRAINING`** state, you will have to recreate `group_a` and `group_b` once you start draining a new server. They will look like:
@@ -67,14 +67,46 @@ Now, that there is no server in the **`DRAINING`** state, you will have to recre
 
 Adding nodes to Aeolus is more straightforward, all that needs to be done is adding the node to the first hop array without modifying the second hop array. And to ensure mainitaining a good distribution when adding a server `x`:
 
-- Put server `x` in the **`FILLING`** state.
 - Calculate the appropriate frequency of `x` in the forwarding table arrays.
 - Track the nodes, _**that are in the `ACTIVE` state**_, with the most frequency. - `MaxHeap`.
     - Move them from the first hop array to the same position in the second hop array.
     - Substite them in the first hop array with `x`.
 - Once server `x` is not redirecting anymore packets, chage its state to **`ACTIVE`**
 
+<h4 id="appropriate-frequency">Filling Node Frequency:</h4>
+
+Let's say we have `num_of_entries` entry in each array of the forwarding table, and we currently have `num_of_nodes` nodes that are either in the **`ACTIVE`** or the **`FILLING`** states. It might be intuitive to add `(num_of_entries / num_of_nodes)` of the node `x` to the forwarding table. However, this will make it difficult to add more new nodes to the cluster, as nodes that are in the **`FILLING`** state can not be moved to the second hop array.
+
+To address this, Aeolus uses the following equation to get the appropriate frequency for `x`:
+
+```Text
+frequency = ceil((floor(num_of_entries / num_of_nodes) / 3) * 2)
+```
+
+_**This equation basically mean we add two thirds of the result of the intuitive approach mentioned above.**_
+
 <h4 id="adding-example">Example:</h4>
+
+Continuing our previous example, the forwarding table will start in the following state:
+
+```Text
+first  = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+second = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+```
+
+Let's add server `4` back into the cluster.
+
+```Text
+Step I: Calculate the desired frequency for server `4`.
+    freq = ceil((floor(num_of_entries / num_of_active) / 3) * 2)
+    freq = ceil((floor(21 / 5) / 3) * 2) = 3
+    freq = ceil((floor(4.2) / 3) * 2) = 3
+    freq = ceil((4 / 2) * 3) = 3
+    freq = ceil(2.66666667) = 3
+
+first  = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+second = [0, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 6]
+```
 
 TODO: Continue on the same [example](#removing-example) of the previous section.
 
