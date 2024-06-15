@@ -1,8 +1,8 @@
-# <span style="font-size: 28px"><span style="text-transform: uppercase;"><span style="font-size: 36px">a</span>eolus</span> - Forward Tables & Hashing</span>
+# <span style="font-size: 28px"><span style="text-transform: uppercase;"><span style="font-size: 36px">a</span>eolus</span> - Forwarding Tables & Hashing</span>
 
 **<i>Aeolus</i>** uses a simple two-array structure for the [`forwarding table`](https://www.baeldung.com/cs/routing-vs-forwarding-tables#:~:text=A%20forwarding%20table%20simply%20forwards,%2C%20and%20host%2Dspecific%20methods.), and uses a hash of the [`4-tuple`](https://www.cse.iitb.ac.in/~cs348m/notes/lec08.txt#:~:text=TCP%20uses%204%2Dtuple%20(source%20IP%2C%20source%0A%20%20port%2C%20destination%20IP%2C%20destination%20port)) to index the table.
 
-## Forward Table
+## Forwarding Table
 
 When a new packet arrives, we generate a [`hash`](#hashing) key which is used to retrieve the destination server from the forwarding table.
 
@@ -141,22 +141,42 @@ A node can be in one of four states:
 
 ## Hashing
 
-TODO: The below hash doesn't really distribute the load eaqually, there's a very high chance of having most of the requests to hit the same server.
+Aeolus's hashing function is inspired by the Linux kernel's [**`inet_ehashfn`**](https://github.com/torvalds/linux/blob/a3e18a540541325a8c8848171f71e0d45ad30b2c/net/ipv4/inet_hashtables.c#L32); it takes the **`4-tuple`** and retreives a hash key to index the [**`forwarding table`**](#forwarding-table).
 
-`hash_key = (src_ip | dest_ip | (src_port as u32) | (dest_port as u32)) % (n * (n - 1))`
-
-Assume we have a packet with the following info:
-
-| Key       | Value       |
-| --------- | ----------- |
-| src_ip    | 203.0.113.1 |
-| src_port  | 1234        |
-| dest_ip   | 203.0.113.2 |
-| dest_port | 4321        |
-```
-hash_key = (3405803777 | 3405803778 | (1234 as u32) | (4321 as u32)) % (5 * (5 - 1))
-hash_key = (3405805043) % 20
-hash_key = 3
+```Text
+hash_key =
+    (src_ip ^
+    dst_ip ^
+    (src_port << 16) ^
+    src_port ^
+    (dst_port << 8) ^
+    src_port) % num_of_entries
 ```
 
-Therefore this packet gets forwarded to server `4` for the first hop, if no established connection, then gets forwarded to server `0`.
+<h4 id="hashing-example">Example:</h4>
+
+Assume the cluster's forwarding table is in the following state:
+
+```Text
+first  = [6, 0, 0, 1, 1, 1, 1, 3, 5, 3, 3, 3, 1, 3, 5, 5, 5, 5, 6, 6, 0]
+second = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6]
+```
+
+And we recieve a packet with the following info:
+
+| Key       | Value       | Decimal    |
+| --------- | ----------- | ---------- |
+| src_ip    | 203.0.113.1 | 3405803777 |
+| src_port  | 1234        | 1234       |
+| dest_ip   | 203.0.113.2 | 3405803778 |
+| dest_port | 4321        | 4321       |
+
+The hash key of the node that should receive the packet is:
+
+```Text
+hash_key = (3405803777 ^ 3405803778 ^ (1234 << 16) ^ 1234 ^ (4321 << 8) ^ 4321) % 21
+         = (3405803777 ^ 3405803778 ^ 80871424 ^ 1234 ^ 1106176 ^ 4321) % 21
+         = 20
+```
+
+Therefore, the packet gets forwarded to server `0` on the first hop, if the packet is not a [**`TCP SYN`**](https://datatracker.ietf.org/doc/html/rfc9293#section-3.1-6.14.2.14.1) packet and there isn't and established connection for it, then it gets redirected to server `6`.
